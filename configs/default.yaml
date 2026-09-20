@@ -1,0 +1,70 @@
+# Default configuration. Pin seed + model names here so a run is reproducible.
+project:
+  name: teacher-student-chinese-sentiment
+  seed: 42
+
+paths:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  splits_dir: data/splits
+  results_dir: results
+  reports_dir: reports
+
+data:
+  # Public corpora (both 2-class; 3-class labels come later from teacher+human):
+  #   online_shopping_10_cats (62,773)  — 10 product categories
+  #   ChnSentiCorp           (12,000)   — hotel / laptop / book
+  # Optional 3rd source: crawled reviews -> human 3-class annotation (neutral gold).
+  source: multi               # multi | csv | jsonl (files auto-detected in data/raw)
+  train_pool_size: 2000
+  dev_size: 200
+  gold_size: 200
+  gold_neutral_size: 60       # reserve this many neutral-candidate slots in gold (0 = plain random split)
+  hard_subset_size: 40        # Chinese hard cases sampled from gold (for error analysis)
+  min_text_len: 2
+  max_text_len: 512
+
+labels:
+  classes: [negative, neutral, positive]
+
+teacher:
+  provider: moonshot           # dashscope | deepseek | moonshot | zhipu | openai | mock
+  model: kimi-k3               # explicit override of the moonshot preset (moonshot-v1-8k)
+  # base_url / api_key_env are optional; provider presets fill them when blank.
+  # base_url: https://api.moonshot.cn/v1
+  # api_key_env: MOONSHOT_API_KEY
+  temperature:                 # null = omit (K3 fixes sampling params & rejects non-default);
+                               #   for qwen/deepseek etc. set 0 here for determinism
+  reasoning_effort: low        # K3 only (low/high/max, default max) — lower = cheaper/faster
+  max_tokens: 1024             # K3 needs headroom for its reasoning tokens before the answer
+  max_retries: 3
+  max_workers: 3               # concurrent requests during batch labeling (OpenAI client is thread-safe)
+  few_shot_per_class: 3
+  # List prices — UPDATE to the current list price before final cost reporting.
+  price_cny_per_1k_input: 0.0015
+  price_cny_per_1k_output: 0.006
+
+student:
+  base_model: Qwen/Qwen3-0.6B
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  epochs: 3
+  lr: 2.0e-4
+  batch_size: 16
+  grad_accum: 1
+  seq_len: 256
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  class_weights: balanced      # none | balanced — upweight minority classes (neutral) in the loss
+
+baseline:
+  tfidf_analyzer: char_wb       # char n-grams: Chinese has no spaces -> use chars
+  tfidf_max_features: 20000
+  tfidf_ngram_range: [2, 4]
+  svc_C: 1.0
+
+agreement:
+  # Teacher–human consistency gate (plan §5.1): pass before full-scale labeling.
+  min_accuracy: 0.85
+  min_kappa: 0.6

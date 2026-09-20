@@ -1,0 +1,21 @@
+# ── Bottom-level modules (config / data / labels / metrics / cost) ──
+numpy
+pandas
+pyyaml
+python-dotenv
+
+# ── Dataset access (HF) ──
+datasets>=3.0
+pyarrow
+
+# ── Baseline (TF-IDF + LinearSVC) ──
+scikit-learn
+
+# ── Student fine-tuning (LoRA / QLoRA) ──
+transformers>=4.44
+peft
+accelerate
+# bitsandbytes        # only for 4-bit QLoRA on GPU; optional
+
+# ── Teacher (DashScope, OpenAI-compatible) ──
+openai>=1.0
