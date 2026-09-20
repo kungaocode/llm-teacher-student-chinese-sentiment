@@ -4,7 +4,8 @@ Knowledge-distillation pipeline that labels ~2,000 unlabeled Chinese reviews wit
 strong teacher LLM, fine-tunes a small student model (LoRA), and measures the
 **macro-F1 × cost** trade-off of each model on a human-labeled gold set.
 
-> Status: **scaffold + bottom-level modules done; data acquisition deferred.**
+> Status: **data + teacher labeling done; fine-tune JSONL (train/dev/test) exported;
+> gold human review pending; student fine-tuning runs on a cloud GPU (user-chosen Qwen 4B or smaller).**
 
 ## Why (one paragraph)
 
@@ -54,7 +55,9 @@ cp .env.example .env      # then fill DASHSCOPE_API_KEY for the teacher
 ```bash
 python scripts/1_prepare.py      # data/raw -> splits (needs the corpus first)
 python scripts/2_teacher_label.py
-python scripts/3_check_gold.py
+python scripts/3_check_gold.py     # propose gold labels for human review
+python scripts/export_finetune.py  # train/dev/test -> cloud fine-tune JSONL (messages format)
+python scripts/score_test.py results/predictions/<model>.jsonl  # score cloud-model predictions
 python scripts/5_baselines.py
 python scripts/4_train_student.py
 python scripts/6_evaluate.py
