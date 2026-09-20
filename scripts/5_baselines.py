@@ -60,10 +60,13 @@ def main() -> int:
         return 1
 
     train_ids, train_texts, train_labels = _load_labeled(train_path)
-    gold = [g for g in load_jsonl_dicts(gold_path) if g.get("label") is not None]
+    # Predict on ALL gold rows even before human labels exist; summary only when
+    # the full gold set is labeled (score against results/test_composition.jsonl
+    # or later human gold via scripts/score_test.py).
+    gold = load_jsonl_dicts(gold_path)
     gold_texts = [g["text"] for g in gold]
     gold_ids = [g["id"] for g in gold]
-    gold_labels = [coerce_label(g["label"]) for g in gold]
+    gold_labels = [coerce_label(g["label"]) for g in gold if g.get("label") is not None]
 
     max_feat = int(cfg.get("baseline.tfidf_max_features", 20000))
     ngram = tuple(int(x) for x in cfg.get("baseline.tfidf_ngram_range", [2, 4]))
@@ -84,9 +87,13 @@ def main() -> int:
     preds = clf.predict(X_gold)
     elapsed = time.time() - t0
 
-    summary = classification_summary(gold_labels, preds)
-    print(f"[5_baselines] accuracy={summary['accuracy']:.3f}  "
-          f"macro_f1={summary['macro_f1']:.3f}  per_class={summary['per_class_f1']}")
+    if len(gold_labels) == len(gold):
+        summary = classification_summary(gold_labels, preds)
+        print(f"[5_baselines] accuracy={summary['accuracy']:.3f}  "
+              f"macro_f1={summary['macro_f1']:.3f}  per_class={summary['per_class_f1']}")
+    else:
+        print(f"[5_baselines] gold has no human labels yet ({len(gold_labels)}/{len(gold)}); "
+              "wrote predictions for scoring via scripts/score_test.py")
 
     results_dir.mkdir(parents=True, exist_ok=True)
     usage_dir.mkdir(parents=True, exist_ok=True)
