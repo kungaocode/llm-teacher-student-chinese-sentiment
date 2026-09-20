@@ -29,3 +29,6 @@ results/*.jsonl
 !results/.gitkeep
 reports/*.md
 !reports/.gitkeep
+
+# one-off example file (54 duplicated example rows, not pipeline data)
+Trainingdata.jsonl
