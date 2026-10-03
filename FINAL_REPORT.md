@@ -19,6 +19,8 @@ publication-grade 性能评测”。原因是 `data/splits/gold.jsonl` 的 200 �
 - TF-IDF（char 2-4 grams）+ LinearSVC 低成本基线
 - 成本统计、按类别统计、困难样本分类和 pairwise 一致性
 - 使用原始二分类标签的独立弱校验脚本
+- 本地 Web 人工标注台，支持中性 / 正面 / 负面确认、撤销、进度统计、
+  按标签目录持久化和 A/B 双人独立标注
 - 可运行的最小单元测试集
 
 主要入口：
@@ -31,6 +33,7 @@ publication-grade 性能评测”。原因是 `data/splits/gold.jsonl` 的 200 �
 | 教师建议 | `results/gold_teacher_proposals.jsonl` |
 | 测试集来源标记 | `results/test_composition.jsonl` |
 | 成本表 | `results/cost.json` |
+| Web 标注入口 | `scripts/9_annotate_web.py` |
 | 当前空人工标注模板 | `data/annotations/gold_annotation.csv` |
 
 ## 评测口径一：与教师建议的一致性
@@ -75,6 +78,42 @@ publication-grade 性能评测”。原因是 `data/splits/gold.jsonl` 的 200 �
 学生相对教师约节省 6 倍 API 成本。秒数是本批次 API 墙钟时间，不是经过多次
 基准测试的稳定延迟；本地基线的秒数包含拟合和推理，不能直接当作生产吞吐。
 
+## 人工标注台与双人流程
+
+`scripts/9_annotate_web.py` 提供零额外依赖的本地前后端标注平台。后端只监听
+本机地址，前端逐条展示评论；点击中性、正面或负面按钮并确认后，标注立即写入
+对应标签文件夹，同时重建兼容现有流程的 JSONL 文件。快捷键为 `1` 中性、
+`2` 正面、`3` 负面。
+
+双人独立标注建议分别启动：
+
+```bash
+# 终端 1
+python3 scripts/9_annotate_web.py --annotator a --open
+# 终端 2
+python3 scripts/9_annotate_web.py --annotator b --port 8766 --open
+```
+
+标注文件结构：
+
+```text
+data/annotations/web/<annotator>/labels/neutral/<id>.json
+data/annotations/web/<annotator>/labels/positive/<id>.json
+data/annotations/web/<annotator>/labels/negative/<id>.json
+data/annotations/review_<annotator>.jsonl
+```
+
+界面中的“导出标注表”只更新
+`data/annotations/gold_annotation.csv` 的当前标注员列，不直接改写
+`data/splits/gold.jsonl`。A/B 两人完成标注后执行：
+
+```bash
+python3 scripts/annotate_gold.py --collect
+python3 scripts/3_check_gold.py
+```
+
+一致样本会被收集为三类 `label`；不一致样本会保留并列出，等待人工裁定。
+
 ## 关键限制
 
 1. **没有独立三类 gold。** 200 条 held-out 的 `label` 全为空，教师建议不能
@@ -100,7 +139,7 @@ python3 scripts/4_train_student.py --dry-run
 当前验证结果：
 
 - `scripts/8_validate_binary.py` 在 200 条 gold id 上完成对齐并写出 JSON/Markdown
-- `pytest`：6 passed
+- `pytest`：11 passed
 - `4_train_student.py --dry-run`：train 2000、dev 200，标签分布和 balanced
   weights 可计算
 

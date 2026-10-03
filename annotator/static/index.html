@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>人工标注台</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">TS</span>
+        <div>
+          <p class="eyebrow">Teacher-Student Sentiment</p>
+          <h1>人工标注台</h1>
+        </div>
+      </div>
+      <div class="topbar-status">
+        <span class="reviewer-chip" id="reviewer-chip">标注员 A</span>
+        <span class="top-progress" id="top-progress">0 / 0</span>
+      </div>
+    </header>
+
+    <div class="progress-track top-progress-track" aria-hidden="true">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <main class="workspace">
+      <section class="review-column" aria-label="评论标注区">
+        <div class="review-toolbar">
+          <div class="queue-status">
+            <span id="queue-position">第 0 / 0 条</span>
+            <span class="status-dot" id="status-dot"></span>
+            <span id="item-status">未标注</span>
+          </div>
+          <div class="segmented" role="group" aria-label="队列筛选">
+            <button type="button" class="segment is-active" data-filter="unlabeled">未标注</button>
+            <button type="button" class="segment" data-filter="all">全部</button>
+          </div>
+        </div>
+
+        <article class="review-panel" id="review-panel" aria-live="polite">
+          <div class="review-meta">
+            <span>ID <strong id="item-id">--</strong></span>
+            <span id="item-source">--</span>
+            <span id="item-domain">--</span>
+          </div>
+          <div class="review-copy">
+            <p id="review-text">正在加载标注数据...</p>
+          </div>
+        </article>
+
+        <div class="classification-bar" role="group" aria-label="情感分类">
+          <button type="button" class="label-button neutral" data-label="neutral">
+            <span class="label-name">中立</span>
+            <span class="label-key">1</span>
+          </button>
+          <button type="button" class="label-button positive" data-label="positive">
+            <span class="label-name">正面</span>
+            <span class="label-key">2</span>
+          </button>
+          <button type="button" class="label-button negative" data-label="negative">
+            <span class="label-name">负面</span>
+            <span class="label-key">3</span>
+          </button>
+        </div>
+
+        <div class="review-nav">
+          <button type="button" class="nav-button" id="prev-button">
+            <span aria-hidden="true">←</span>
+            上一条
+          </button>
+          <button type="button" class="nav-button danger-text" id="clear-button" hidden>
+            撤销本条标注
+          </button>
+          <button type="button" class="nav-button" id="next-button">
+            下一条
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="标注统计">
+        <section class="side-section progress-section">
+          <div class="section-heading">
+            <h2>本批次进度</h2>
+            <span id="remaining-label">剩余 0 条</span>
+          </div>
+          <div class="progress-number">
+            <strong id="annotated-count">0</strong>
+            <span id="total-count">/ 0</span>
+          </div>
+          <div class="progress-track side-progress-track" aria-hidden="true">
+            <div class="progress-fill" id="side-progress-fill"></div>
+          </div>
+        </section>
+
+        <section class="side-section">
+          <div class="section-heading">
+            <h2>标签分布</h2>
+          </div>
+          <ul class="distribution-list">
+            <li>
+              <span><i class="distribution-dot neutral"></i>中立</span>
+              <strong id="count-neutral">0</strong>
+            </li>
+            <li>
+              <span><i class="distribution-dot positive"></i>正面</span>
+              <strong id="count-positive">0</strong>
+            </li>
+            <li>
+              <span><i class="distribution-dot negative"></i>负面</span>
+              <strong id="count-negative">0</strong>
+            </li>
+          </ul>
+        </section>
+
+        <section class="side-section recent-section">
+          <div class="section-heading">
+            <h2>最近标注</h2>
+            <span id="recent-count">0</span>
+          </div>
+          <ol class="recent-list" id="recent-list"></ol>
+        </section>
+
+        <section class="side-section export-section">
+          <button type="button" class="secondary-button" id="export-button" disabled>
+            导出标注表
+          </button>
+          <p class="export-note" id="export-note">暂无已确认标注</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <dialog class="confirm-dialog" id="confirm-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-topline">
+      <span class="dialog-kicker">确认操作</span>
+      <button type="button" class="icon-button" id="dialog-close" aria-label="关闭">×</button>
+    </div>
+    <h2 id="dialog-title">确认标注</h2>
+    <p class="dialog-message" id="dialog-message"></p>
+    <blockquote class="dialog-preview" id="dialog-preview"></blockquote>
+    <div class="dialog-actions">
+      <button type="button" class="secondary-button" id="dialog-cancel">取消</button>
+      <button type="button" class="primary-button" id="dialog-confirm">确认标注</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

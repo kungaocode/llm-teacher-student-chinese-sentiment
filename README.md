@@ -34,6 +34,7 @@ data/raw ──▶ 1_prepare.py ──▶ data/splits/{train_pool, dev, gold}
   5_baselines.py     (TF-IDF + LinearSVC)
   7_cost.py          (CNY & seconds per 1,000 predictions)
   8_validate_binary.py (external weak check against source two-class labels)
+  9_annotate_web.py  (local browser bench -> per-label human annotation files)
 ```
 
 ## Labels
@@ -45,7 +46,8 @@ Fixed 3-class coarse scheme: `negative / neutral / positive`.
 
 ```
 src/            bottom-level library: config, data, labels, metrics, cost, validation
-scripts/        0..8 numbered pipeline (run in order)
+annotator/      zero-dependency local HTTP server, storage, and static web UI
+scripts/        0..9 numbered pipeline (run in order)
 configs/        default.yaml — model names, sizes, seed (pinned for reproducibility)
 data/           raw / processed / splits (large files not committed)
 results/        metrics.json, cost table, error samples
@@ -73,10 +75,48 @@ python scripts/5_baselines.py      # TF-IDF + LinearSVC baseline (local, zero co
 python scripts/7_cost.py           # cost table from results/usage/*.jsonl
 python3 scripts/8_validate_binary.py  # weak binary check + reports/binary_validation.{json,md}
 # human-gold review (optional, publication-grade truth):
-python scripts/review.py           # single-annotator interactive gold labeling
+# run one server per annotator, in separate terminals
+python3 scripts/9_annotate_web.py --annotator a --open
+python3 scripts/9_annotate_web.py --annotator b --port 8766 --open
+# label independently as A and B, then collect the two columns:
+python3 scripts/annotate_gold.py --collect
 python scripts/export_finetune.py  # rerun -> test truth switches to human labels
 python3 scripts/8_validate_binary.py  # refresh diagnostics
 ```
+
+## Human annotation bench
+
+`scripts/9_annotate_web.py` starts a local-only web app at
+`http://127.0.0.1:8765` by default. It shows one review at a time, provides
+neutral / positive / negative buttons, asks for confirmation, and saves each
+confirmed label immediately. Keyboard shortcuts are `1` neutral, `2` positive,
+and `3` negative.
+
+Use separate annotator identities for independent double review:
+
+```bash
+# terminal 1
+python3 scripts/9_annotate_web.py --annotator a --open
+# terminal 2
+python3 scripts/9_annotate_web.py --annotator b --port 8766 --open
+```
+
+The per-label JSON files are the source of truth. The app also rebuilds the
+JSONL indexes used by the existing workflow:
+
+```text
+data/annotations/web/<annotator>/labels/neutral/<id>.json
+data/annotations/web/<annotator>/labels/positive/<id>.json
+data/annotations/web/<annotator>/labels/negative/<id>.json
+data/annotations/web/<annotator>/annotations.jsonl
+data/annotations/review_<annotator>.jsonl
+```
+
+The UI's **导出标注表** action writes the current annotator column into the
+existing `data/annotations/gold_annotation.csv`. It does not write human labels
+directly into `data/splits/gold.jsonl`; use
+`python3 scripts/annotate_gold.py --collect` after A/B review so that matching
+labels are collected and disagreements remain available for adjudication.
 
 ## Results (demo run · 2026-09)
 

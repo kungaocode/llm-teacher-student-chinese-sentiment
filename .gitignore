@@ -6,6 +6,8 @@ api.txt
 data/raw/*
 data/processed/*
 data/splits/*
+data/annotations/web/
+data/annotations/review_*.jsonl
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 !data/splits/.gitkeep
