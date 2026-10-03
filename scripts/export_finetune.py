@@ -9,7 +9,7 @@ Three files, one line per example:
 
     finetune_train.jsonl  <- teacher-labeled train pool (2,000)
     finetune_dev.jsonl    <- teacher-labeled dev set     (200)
-    finetune_test.jsonl   <- gold set (200), ground truth =
+    finetune_test.jsonl   <- gold set (200), evaluation reference =
                              human gold label if present, else teacher proposal
 
 The test set is the held-out gold set (disjoint from train/dev) plus a sidecar

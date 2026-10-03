@@ -1,0 +1,204 @@
+{
+  "artifacts": {
+    "baseline": "results/baseline_predictions.jsonl",
+    "gold": "data/splits/gold.jsonl",
+    "student": "results/predictions/qwen3-4b-instruct-2507-d8e7296a858a_predictions.jsonl",
+    "teacher": "results/gold_teacher_proposals.jsonl"
+  },
+  "evaluation_boundary": {
+    "external_source_labels": "noisy two-class weak check",
+    "neutral": "abstention in coverage; error in neutral-as-error accuracy",
+    "teacher_proposals": "not human gold"
+  },
+  "external_binary_validation": {
+    "baseline": {
+      "accuracy_neutral_as_error": 0.82,
+      "balanced_recall": 0.8294,
+      "confusion": {
+        "negative": {
+          "abstain": 1,
+          "negative": 85,
+          "positive": 5
+        },
+        "positive": {
+          "abstain": 2,
+          "negative": 28,
+          "positive": 79
+        }
+      },
+      "coverage": 0.985,
+      "coverage_count": 197,
+      "covered_accuracy": 0.8325,
+      "n": 200,
+      "prediction_distribution": {
+        "negative": 113,
+        "neutral": 3,
+        "positive": 84
+      },
+      "recall": {
+        "negative": 0.9341,
+        "positive": 0.7248
+      },
+      "true_distribution": {
+        "negative": 91,
+        "positive": 109
+      }
+    },
+    "student": {
+      "accuracy_neutral_as_error": 0.8,
+      "balanced_recall": 0.812,
+      "confusion": {
+        "negative": {
+          "abstain": 5,
+          "negative": 86,
+          "positive": 0
+        },
+        "positive": {
+          "abstain": 29,
+          "negative": 6,
+          "positive": 74
+        }
+      },
+      "coverage": 0.83,
+      "coverage_count": 166,
+      "covered_accuracy": 0.9639,
+      "n": 200,
+      "prediction_distribution": {
+        "negative": 92,
+        "neutral": 34,
+        "positive": 74
+      },
+      "recall": {
+        "negative": 0.9451,
+        "positive": 0.6789
+      },
+      "true_distribution": {
+        "negative": 91,
+        "positive": 109
+      }
+    },
+    "student_neutral_fallback_baseline": {
+      "accuracy_neutral_as_error": 0.87,
+      "balanced_recall": 0.878,
+      "confusion": {
+        "negative": {
+          "abstain": 1,
+          "negative": 88,
+          "positive": 2
+        },
+        "positive": {
+          "abstain": 1,
+          "negative": 22,
+          "positive": 86
+        }
+      },
+      "coverage": 0.99,
+      "coverage_count": 198,
+      "covered_accuracy": 0.8788,
+      "n": 200,
+      "prediction_distribution": {
+        "negative": 110,
+        "neutral": 2,
+        "positive": 88
+      },
+      "recall": {
+        "negative": 0.967,
+        "positive": 0.789
+      },
+      "true_distribution": {
+        "negative": 91,
+        "positive": 109
+      }
+    },
+    "teacher": {
+      "accuracy_neutral_as_error": 0.815,
+      "balanced_recall": 0.8248,
+      "confusion": {
+        "negative": {
+          "abstain": 4,
+          "negative": 85,
+          "positive": 2
+        },
+        "positive": {
+          "abstain": 24,
+          "negative": 7,
+          "positive": 78
+        }
+      },
+      "coverage": 0.86,
+      "coverage_count": 172,
+      "covered_accuracy": 0.9477,
+      "n": 200,
+      "prediction_distribution": {
+        "negative": 92,
+        "neutral": 28,
+        "positive": 80
+      },
+      "recall": {
+        "negative": 0.9341,
+        "positive": 0.7156
+      },
+      "true_distribution": {
+        "negative": 91,
+        "positive": 109
+      }
+    },
+    "teacher_neutral_fallback_baseline": {
+      "accuracy_neutral_as_error": 0.865,
+      "balanced_recall": 0.8725,
+      "confusion": {
+        "negative": {
+          "abstain": 1,
+          "negative": 87,
+          "positive": 3
+        },
+        "positive": {
+          "abstain": 1,
+          "negative": 22,
+          "positive": 86
+        }
+      },
+      "coverage": 0.99,
+      "coverage_count": 198,
+      "covered_accuracy": 0.8737,
+      "n": 200,
+      "prediction_distribution": {
+        "negative": 109,
+        "neutral": 2,
+        "positive": 89
+      },
+      "recall": {
+        "negative": 0.956,
+        "positive": 0.789
+      },
+      "true_distribution": {
+        "negative": 91,
+        "positive": 109
+      }
+    }
+  },
+  "n": 200,
+  "pairwise_agreement": {
+    "baseline_vs_teacher": 0.805,
+    "student_vs_baseline": 0.79,
+    "student_vs_teacher": 0.91
+  },
+  "schema_version": 1,
+  "teacher_proposal_consistency": {
+    "baseline": {
+      "accuracy": 0.805,
+      "macro_f1": 0.6178,
+      "neutral_f1": 0.129
+    },
+    "student": {
+      "accuracy": 0.91,
+      "macro_f1": 0.8735,
+      "neutral_f1": 0.7419
+    },
+    "teacher": {
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "neutral_f1": 1.0
+    }
+  }
+}

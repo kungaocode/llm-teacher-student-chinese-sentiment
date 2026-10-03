@@ -45,6 +45,8 @@ teacher:
   price_cny_per_1k_output: 0.006
 
 student:
+  # Local reference configuration. The committed demo result uses a Bailian
+  # fine-tuned qwen3-4b-instruct-2507 deployment, recorded in README/results.
   base_model: Qwen/Qwen3-0.6B
   lora_r: 16
   lora_alpha: 32

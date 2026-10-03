@@ -2,19 +2,25 @@
 
 Knowledge-distillation pipeline that labels ~2,000 unlabeled Chinese reviews with a
 strong teacher LLM, fine-tunes a small student model (LoRA), and measures the
-**macro-F1 × cost** trade-off of each model on a human-labeled gold set.
+**macro-F1 × cost** trade-off of each model on a protected held-out set with an
+explicit truth-source boundary.
 
 > Status: **pipeline complete for a demo run — teacher (kimi-k3) labeled 2,000 reviews,
 > student (qwen3-4b-instruct-2507, fine-tuned on Bailian) deployed; final test on 200 held-out
 > reviews: student acc 0.910 / macro-F1 0.874 vs baseline 0.805 / 0.618 (truth = teacher proposals;
 > human-gold review is the optional next step for publication-grade numbers).**
 
+See [`FINAL_REPORT.md`](FINAL_REPORT.md) for the close-out report and
+[`DATA_SOURCES.md`](DATA_SOURCES.md) for provenance and licence caveats.
+
 ## Why (one paragraph)
 
 Strong LLMs are accurate but expensive per prediction. This project quantifies
 *how much* accuracy a small distilled student gives up and *how much* cost it saves —
 the "task–model right-sizing" curve: teacher (API) vs. student (LoRA) vs. a
-traditional TF-IDF + LinearSVC baseline, all scored on the **same** human gold set.
+traditional TF-IDF + LinearSVC baseline, all scored on the **same** held-out rows.
+The current demo run uses teacher proposals as the three-class reference; it does
+not yet have an independent human gold set.
 
 ## Pipeline
 
@@ -27,6 +33,7 @@ data/raw ──▶ 1_prepare.py ──▶ data/splits/{train_pool, dev, gold}
   cloud_predict.py   (call the deployed model + score_test per class/category)
   5_baselines.py     (TF-IDF + LinearSVC)
   7_cost.py          (CNY & seconds per 1,000 predictions)
+  8_validate_binary.py (external weak check against source two-class labels)
 ```
 
 ## Labels
@@ -37,8 +44,8 @@ Fixed 3-class coarse scheme: `negative / neutral / positive`.
 ## Layout
 
 ```
-src/            bottom-level library: config, data, labels, metrics, cost
-scripts/        1..7 numbered pipeline (run in order)
+src/            bottom-level library: config, data, labels, metrics, cost, validation
+scripts/        0..8 numbered pipeline (run in order)
 configs/        default.yaml — model names, sizes, seed (pinned for reproducibility)
 data/           raw / processed / splits (large files not committed)
 results/        metrics.json, cost table, error samples
@@ -64,9 +71,11 @@ python scripts/cloud_predict.py --model <deployment-id>   # cloud predict + scor
 python scripts/score_test.py results/predictions/<model>_predictions.jsonl
 python scripts/5_baselines.py      # TF-IDF + LinearSVC baseline (local, zero cost)
 python scripts/7_cost.py           # cost table from results/usage/*.jsonl
+python3 scripts/8_validate_binary.py  # weak binary check + reports/binary_validation.{json,md}
 # human-gold review (optional, publication-grade truth):
 python scripts/review.py           # single-annotator interactive gold labeling
 python scripts/export_finetune.py  # rerun -> test truth switches to human labels
+python3 scripts/8_validate_binary.py  # refresh diagnostics
 ```
 
 ## Results (demo run · 2026-09)
@@ -76,6 +85,8 @@ fine-tuned on 2,000 teacher labels via Bailian (LoRA) and served from a dedicate
 deployment, baseline = TF-IDF (char 2–4-grams) + LinearSVC. Test = 200 held-out
 reviews (disjoint from train/dev). **Truth = teacher proposals** (human gold
 labels are the optional next step), so the teacher row is 1.0 by construction.
+`configs/default.yaml` is the local 0.6B reference configuration; the committed
+demo artifacts use the cloud-fine-tuned 4B deployment named above.
 
 | model | accuracy | macro-F1 | neutral F1 | est. cost / 1k preds |
 |---|---|---|---|---|
@@ -83,10 +94,30 @@ labels are the optional next step), so the teacher row is 1.0 by construction.
 | **Student qwen3-4B (deployed)** | **0.910** | **0.874** | **0.742** | ¥0.19 est. · 452 s/1k |
 | Baseline TF-IDF + LinearSVC | 0.805 | 0.618 | **0.129** | ¥0.00 · 3 s/1k |
 
+This table is a teacher-consistency comparison, not an independent estimate of
+three-class quality. The public source corpora provide only two-class labels, so
+the project also runs a deliberately weaker external check:
+
+| model | neutral abstentions | coverage | covered accuracy | neutral-as-error accuracy |
+|---|---:|---:|---:|---:|
+| Teacher kimi-k3 | 28 | 86.00% | 94.77% | 81.50% |
+| Student qwen3-4B | 34 | 83.00% | 96.39% | 80.00% |
+| Baseline TF-IDF + LinearSVC | 3 | 98.50% | 83.25% | 82.00% |
+| Student, neutral falls back to baseline | 2 | 99.00% | 87.88% | 87.00% |
+
+The fallback row is a deployment diagnostic only. It improves the noisy binary
+score by giving up neutral predictions, so it is not evidence of better
+three-class performance. The source labels are noisy, cover no neutral class,
+and cannot replace human annotation. Full tables and pairwise agreement are in
+[`reports/binary_validation.json`](reports/binary_validation.json).
+
 Takeaways:
 
 - The distilled student keeps ~91% of the teacher's label agreement while costing
   ~1/6 per prediction at list prices — the task–model right-sizing curve.
+- On the external two-class check, all models have lower positive recall than
+  negative recall; the student abstains on more positives than the teacher or
+  baseline, which explains why covered accuracy is high but coverage is lower.
 - Neutral is the hard class for everyone; the traditional baseline collapses on it
   (F1 0.129), which is the strongest argument for distillation on this 3-class task.
 - Per-category (accuracy): plain 0.939 · mixed pos/neg 0.854 · sarcasm-candidate
@@ -96,7 +127,8 @@ Takeaways:
 
 ## Data & license
 
-ChnSentiCorp (open Chinese hotel/shopping reviews). Download is deferred; place the
-corpus under `data/raw/` as `*.csv` / `*.jsonl` (columns `text`, optional `label`)
-or the HF `.arrow` files, then run `1_prepare.py`. Record source + license in
-`reports/` before publication.
+The run uses `online_shopping_10_cats` and ChnSentiCorp. Both distributions
+carried no explicit licence when downloaded; "research use" is an operational
+note, not a legal licence. See [`DATA_SOURCES.md`](DATA_SOURCES.md) for hubs,
+counts, credit, and publication caveats. Raw and processed corpora stay
+gitignored; rerun `python scripts/0_download.py` before `1_prepare.py`.

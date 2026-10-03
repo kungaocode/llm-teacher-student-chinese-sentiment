@@ -19,3 +19,6 @@ accelerate
 
 # ── Teacher (DashScope, OpenAI-compatible) ──
 openai>=1.0
+
+# ── Tests ──
+pytest>=8

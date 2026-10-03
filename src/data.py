@@ -1,7 +1,8 @@
 """Data loading, cleaning, and deterministic split into train-pool / dev / gold.
 
 Leak-prevention is the hard rule (plan §4.2):
-    * the gold set is human-labeled and is the ONLY evaluation truth;
+    * the gold split is protected and becomes the ONLY evaluation truth after
+      human review;
     * it must never enter student training (not even as unlabeled text);
     * the train pool is unlabeled and gets its labels from the teacher.
 

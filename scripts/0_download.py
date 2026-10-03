@@ -7,8 +7,8 @@ Sources (both 2-class; the 3-class labels are produced later by teacher + human)
 
 Normalized schema per line: ``{text, source_label, source, domain}`` where
 ``source_label`` is the ORIGINAL 2-class integer (0/1). These corpora carry no
-explicit license (research use); record source + license in ``reports/`` before
-publishing (立项书 §9).
+explicit license (research use); the close-out provenance record is in
+``DATA_SOURCES.md`` (立项书 §9).
 
 Proxy note: this environment sets a ``socks://`` ALL_PROXY that breaks httpx, so
 we strip it here and keep ``http_proxy``/``https_proxy``.
