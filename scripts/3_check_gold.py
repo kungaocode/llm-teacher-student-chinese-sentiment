@@ -2,7 +2,7 @@
 """Step 3: teacher–human gold loop (plan §2, §5.1).
 
 Two modes, chosen automatically by whether ``gold.jsonl`` already carries a
-3-class ``label`` (filled by human double-review):
+3-class ``label`` (filled by human annotation; double-review is recommended):
 
 * **Propose mode** (gold still unlabeled): the teacher proposes a 3-class label
   + reason for every gold sample and writes ``results/gold_teacher_proposals.jsonl``
@@ -12,6 +12,8 @@ Two modes, chosen automatically by whether ``gold.jsonl`` already carries a
 
 * **Agreement mode** (gold has human labels): compare teacher vs human on the
   labeled subset and gate on accuracy / Cohen's kappa before full-scale labeling.
+  This mode calls the teacher API again; ``6_evaluate.py`` can score existing
+  teacher proposals offline without another API call.
 """
 from __future__ import annotations
 
@@ -39,8 +41,8 @@ def _propose(teacher, gold: list[dict], results_dir: Path) -> int:
     print(f"[3_check_gold] PROPOSE MODE: teacher={teacher.model} proposed 3-class labels "
           f"on {len(proposals)} gold samples")
     print(f"               -> {out}")
-    print("               NEXT: human double-review these, then set the verified 3-class")
-    print("               'label' field in data/splits/gold.jsonl and rerun to check agreement.")
+    print("               NEXT: human-review these, collect the labels into gold.jsonl,")
+    print("               then score existing proposals offline with 6_evaluate.py.")
     return 0
 
 

@@ -5,13 +5,16 @@ strong teacher LLM, fine-tunes a small student model (LoRA), and measures the
 **macro-F1 × cost** trade-off of each model on a protected held-out set with an
 explicit truth-source boundary.
 
-> Status: **pipeline complete for a demo run — teacher (kimi-k3) labeled 2,000 reviews,
-> student (qwen3-4b-instruct-2507, fine-tuned on Bailian) deployed; final test on 200 held-out
-> reviews: student acc 0.910 / macro-F1 0.874 vs baseline 0.805 / 0.618 (truth = teacher proposals;
-> human-gold review is the optional next step for publication-grade numbers).**
+> Status: **close-out complete on a 200-row human gold set — teacher (kimi-k3) labeled 2,000
+> reviews, student (qwen3-4b-instruct-2507, fine-tuned on Bailian) was deployed, and the held-out
+> set uses the B column from the A/B annotation workflow as final gold: student acc 0.835 /
+> macro-F1 0.771, teacher 0.835 / 0.764, baseline 0.760 / 0.565. Because the final labels come
+> from one column, it has no inter-annotator kappa and is not presented as double-reviewed
+> publication-grade gold.**
 
 See [`FINAL_REPORT.md`](FINAL_REPORT.md) for the close-out report and
-[`DATA_SOURCES.md`](DATA_SOURCES.md) for provenance and licence caveats.
+[`ANNOTATION_WEB.md`](ANNOTATION_WEB.md) for the web annotation workflow.
+See [`DATA_SOURCES.md`](DATA_SOURCES.md) for provenance and licence caveats.
 
 ## Why (one paragraph)
 
@@ -19,8 +22,9 @@ Strong LLMs are accurate but expensive per prediction. This project quantifies
 *how much* accuracy a small distilled student gives up and *how much* cost it saves —
 the "task–model right-sizing" curve: teacher (API) vs. student (LoRA) vs. a
 traditional TF-IDF + LinearSVC baseline, all scored on the **same** held-out rows.
-The current demo run uses teacher proposals as the three-class reference; it does
-not yet have an independent human gold set.
+The final run uses the B column from the A/B human annotation workflow as the
+three-class reference; teacher proposals remain available as an independent model
+prediction source.
 
 ## Pipeline
 
@@ -29,12 +33,14 @@ data/raw ──▶ 1_prepare.py ──▶ data/splits/{train_pool, dev, gold}
                                       │
   2_teacher_label.py (teacher LLM) ──▶ train_pool.jsonl + labels
   3_check_gold.py    (teacher proposes gold labels for human review)
+  9_annotate_web.py  (local human annotation bench)
+  annotate_gold.py --collect (human labels -> gold.jsonl)
   export_finetune.py (train/dev/test -> cloud fine-tune JSONL, messages format)
   cloud_predict.py   (call the deployed model + score_test per class/category)
   5_baselines.py     (TF-IDF + LinearSVC)
+  6_evaluate.py      (all predictions vs. human gold; no teacher API call)
   7_cost.py          (CNY & seconds per 1,000 predictions)
   8_validate_binary.py (external weak check against source two-class labels)
-  9_annotate_web.py  (local browser bench -> per-label human annotation files)
 ```
 
 ## Labels
@@ -73,16 +79,19 @@ python scripts/cloud_predict.py --model <deployment-id>   # cloud predict + scor
 python scripts/score_test.py results/predictions/<model>_predictions.jsonl
 python scripts/5_baselines.py      # TF-IDF + LinearSVC baseline (local, zero cost)
 python scripts/7_cost.py           # cost table from results/usage/*.jsonl
-python3 scripts/8_validate_binary.py  # weak binary check + reports/binary_validation.{json,md}
-# human-gold review (optional, publication-grade truth):
-# run one server per annotator, in separate terminals
-python3 scripts/9_annotate_web.py --annotator a --open
-python3 scripts/9_annotate_web.py --annotator b --port 8766 --open
-# label independently as A and B, then collect the two columns:
-python3 scripts/annotate_gold.py --collect
-python scripts/export_finetune.py  # rerun -> test truth switches to human labels
-python3 scripts/8_validate_binary.py  # refresh diagnostics
+
+# Human gold used by this close-out: annotator B only.
+python3 scripts/9_annotate_web.py --annotator b --open
+# Export the CSV from the UI, then collect the human labels:
+python3 scripts/annotate_gold.py --collect --allow-single-annotator
+python3 scripts/export_finetune.py       # refresh test truth = human labels
+python3 scripts/6_evaluate.py            # score all models offline on human gold
+python3 scripts/8_validate_binary.py     # refresh the external weak check
 ```
+
+For stronger evaluation, run A and B independently, then collect without the
+single-annotator flag. Matching labels are accepted automatically; disagreements
+remain uncollected until `final_label` contains the adjudicated label.
 
 ## Human annotation bench
 
@@ -92,7 +101,14 @@ neutral / positive / negative buttons, asks for confirmation, and saves each
 confirmed label immediately. Keyboard shortcuts are `1` neutral, `2` positive,
 and `3` negative.
 
-Use separate annotator identities for independent double review:
+For the final close-out, the B column is sufficient as the selected gold, but the
+report must state that A was not collected:
+
+```bash
+python3 scripts/9_annotate_web.py --annotator b --open
+```
+
+For independent double review, use separate annotator identities:
 
 ```bash
 # terminal 1
@@ -116,27 +132,33 @@ The UI's **导出标注表** action writes the current annotator column into the
 existing `data/annotations/gold_annotation.csv`. It does not write human labels
 directly into `data/splits/gold.jsonl`; use
 `python3 scripts/annotate_gold.py --collect` after A/B review so that matching
-labels are collected and disagreements remain available for adjudication.
+labels are collected and disagreements remain available for adjudication. If
+only one column was intentionally filled, add `--allow-single-annotator`; the
+command then reports that no inter-annotator kappa is available.
 
-## Results (demo run · 2026-09)
+## Results (final run · 2026-10)
 
 Setup: teacher = `kimi-k3` (Moonshot API), student = `qwen3-4b-instruct-2507`
 fine-tuned on 2,000 teacher labels via Bailian (LoRA) and served from a dedicated
 deployment, baseline = TF-IDF (char 2–4-grams) + LinearSVC. Test = 200 held-out
-reviews (disjoint from train/dev). **Truth = teacher proposals** (human gold
-labels are the optional next step), so the teacher row is 1.0 by construction.
+reviews (disjoint from train/dev). **Truth = human labels from annotator B**
+(single-annotator gold; positive 91, negative 84, neutral 25).
 `configs/default.yaml` is the local 0.6B reference configuration; the committed
 demo artifacts use the cloud-fine-tuned 4B deployment named above.
 
-| model | accuracy | macro-F1 | neutral F1 | est. cost / 1k preds |
-|---|---|---|---|---|
-| Teacher kimi-k3 (API) | 1.000 | 1.000 | 1.000 | ¥1.15 (list-price estimate) |
-| **Student qwen3-4B (deployed)** | **0.910** | **0.874** | **0.742** | ¥0.19 est. · 452 s/1k |
-| Baseline TF-IDF + LinearSVC | 0.805 | 0.618 | **0.129** | ¥0.00 · 3 s/1k |
+| model | accuracy | macro-F1 | neutral F1 | kappa vs. human | est. cost / 1k preds |
+|---|---:|---:|---:|---:|---|
+| Teacher kimi-k3 (API) | 0.835 | 0.764 | 0.528 | 0.728 | ¥1.15 (list-price estimate) |
+| **Student qwen3-4B (deployed)** | **0.835** | **0.771** | **0.542** | **0.733** | ¥0.19 est. · 452 s/1k |
+| Baseline TF-IDF + LinearSVC | 0.760 | 0.565 | 0.071 | 0.579 | ¥0.00 · 3 s/1k |
 
-This table is a teacher-consistency comparison, not an independent estimate of
-three-class quality. The public source corpora provide only two-class labels, so
-the project also runs a deliberately weaker external check:
+Student and teacher tie on accuracy; the student is 0.007 higher on macro-F1 on
+this 200-row test. The result should be read as a close single-model comparison,
+not as proof that the student matches the teacher in general. The student matches
+the teacher on 91.0% of held-out rows (kappa 0.854), showing strong distillation
+consistency; that pairwise number is not human accuracy. The public source
+corpora provide only two-class labels, so the project also runs a deliberately
+weaker external check:
 
 | model | neutral abstentions | coverage | covered accuracy | neutral-as-error accuracy |
 |---|---:|---:|---:|---:|
@@ -154,16 +176,28 @@ and cannot replace human annotation. Full tables and pairwise agreement are in
 Takeaways:
 
 - The distilled student keeps ~91% of the teacher's label agreement while costing
-  ~1/6 per prediction at list prices — the task–model right-sizing curve.
+  ~1/6 per prediction at list prices; on human gold it reaches 0.835 accuracy /
+  0.771 macro-F1, effectively tying the teacher on this sample.
 - On the external two-class check, all models have lower positive recall than
   negative recall; the student abstains on more positives than the teacher or
   baseline, which explains why covered accuracy is high but coverage is lower.
 - Neutral is the hard class for everyone; the traditional baseline collapses on it
-  (F1 0.129), which is the strongest argument for distillation on this 3-class task.
-- Per-category (accuracy): plain 0.939 · mixed pos/neg 0.854 · sarcasm-candidate
-  0.857 · implicit negation 0.840 · neutral-candidate 0.850 · colloquial 0.750 —
+  (F1 0.071), while the student reaches 0.542.
+- Per-category (student accuracy): plain 0.886 · sarcasm-candidate 0.857 ·
+  colloquial 0.750 · neutral-candidate 0.700 · implicit negation 0.700 ·
+  mixed pos/neg 0.688 —
   typical failures are *overall-positive reviews with negative details → neutral*
   and *“一般般/凑合” → negative*.
+
+## Evaluation limits
+
+The platform supports independent A/B labels, but the final gold uses the B column
+only. The report can therefore state human-gold accuracy, but cannot report
+inter-annotator agreement or adjudication reliability. The neutral class has only
+25 human examples, which makes its F1 and per-category estimates sensitive to a
+few decisions. Adding an independent second annotation is the highest-value way
+to strengthen the evaluation; the student does not need to be retrained for that
+step.
 
 ## Data & license
 

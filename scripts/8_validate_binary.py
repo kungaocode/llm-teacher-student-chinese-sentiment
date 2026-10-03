@@ -148,7 +148,8 @@ def _markdown(report: dict) -> str:
         "- The two-class source labels are noisy and cannot validate `neutral`.",
         "- The teacher-proposal table uses the teacher as its own reference, so the "
         "teacher row is 1.0 by construction.",
-        "- Human annotation remains required before claiming publication-grade "
+        "- A second independent human annotation and adjudication remain required "
+        "before reporting inter-annotator reliability or publication-grade "
         "three-class performance.",
         "",
     ]

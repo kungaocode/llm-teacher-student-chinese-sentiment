@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Human gold-annotation workflow (plan §4.2): export / collect.
 
-The gold set is the ONLY evaluation truth and must be human-labeled with double
-review. This script is the human-in-the-loop glue around ``data/splits/gold.jsonl``:
+The gold set is the ONLY evaluation truth and must be human-labeled. Double
+review is recommended; an explicit single-annotator mode is available for
+internal close-out, with the limitation that no inter-annotator kappa can be
+reported. This script is the human-in-the-loop glue around
+``data/splits/gold.jsonl``:
 
   --export   gold.jsonl -> data/annotations/gold_annotation.csv
              columns: id, text, source, domain, source_label, teacher_suggest,
@@ -11,7 +14,8 @@ review. This script is the human-in-the-loop glue around ``data/splits/gold.json
 
   --collect  read the filled CSV -> write the verified 3-class ``label`` back into
              gold.jsonl; compute inter-annotator Cohen's kappa; list disagreements
-             that still need adjudication.
+             that still need adjudication. With only A or only B filled, pass
+             ``--allow-single-annotator`` to collect the labels explicitly.
 
 Label vocabulary (src.labels.LABELS): positive / neutral / negative.
 Annotators may also write 正面/负面/中性 or 好/差/一般 etc.; numeric 0/1/2 is
@@ -43,7 +47,8 @@ _FIELDNAMES = [
 _LEGEND = (
     "标注词汇表: positive(正面) / neutral(中性) / negative(负面) —— "
     "不要写 0/1/2（与源二分类混淆）。两人独立标注 annotator_a / annotator_b，"
-    "意见不一致时在 final_label 填讨论后的定论。"
+    "意见不一致时在 final_label 填讨论后的定论。单人收尾可只填一列，并在收集时"
+    "显式加上 --allow-single-annotator；该模式没有标注者间一致性 kappa。"
 )
 
 
@@ -108,7 +113,7 @@ def _norm(v: str) -> str:
     return normalize_label(v)
 
 
-def _collect(cfg) -> int:
+def _collect(cfg, allow_single_annotator: bool = False) -> int:
     splits_dir = ROOT / cfg.get("paths.splits_dir", "data/splits")
     out_dir = ROOT / "data" / "annotations"
     csv_path = out_dir / "gold_annotation.csv"
@@ -129,6 +134,7 @@ def _collect(cfg) -> int:
 
     a_lab, b_lab = [], []
     disagreements = []
+    n_single = 0
     n_final = 0
     n_skip = 0
 
@@ -141,15 +147,29 @@ def _collect(cfg) -> int:
             print(f"[annotate_gold] row id={row.get('id')}: {exc}")
             return 1
 
+        if bool(a) != bool(b):
+            n_single += 1
         if a and b:
             a_lab.append(a)
             b_lab.append(b)
+
+        if n_single and not allow_single_annotator:
+            print(
+                "[annotate_gold] found rows with only one annotator; rerun with "
+                "--allow-single-annotator if this is an intentional single-annotator gold."
+            )
+            print(
+                "               single-annotator mode has no inter-annotator kappa "
+                "and is not a double-reviewed publication-grade protocol."
+            )
+            return 1
 
         if not final:
             if a and b and a == b:
                 final = a
             elif a and b:  # genuine disagreement, needs adjudication
                 disagreements.append((row["id"], row["text"][:40], a, b))
+                n_skip += 1
                 continue
             elif a:
                 final = a
@@ -169,8 +189,14 @@ def _collect(cfg) -> int:
 
     write_jsonl(gold_path, gold)
 
-    print(f"[annotate_gold] COLLECT: {n_final}/{len(gold)} gold rows got a verified 3-class label")
-    print(f"               double-annotated rows: {n_both}  Cohen's kappa = {kappa:.3f}")
+    print(f"[annotate_gold] COLLECT: {n_final}/{len(gold)} gold rows got a 3-class human label")
+    if n_both:
+        print(f"               double-annotated rows: {n_both}  Cohen's kappa = {kappa:.3f}")
+    if n_single:
+        print(
+            f"               single-annotator rows: {n_single}  "
+            "no inter-annotator kappa available"
+        )
     if disagreements:
         print(f"               UNRESOLVED disagreements ({len(disagreements)}):")
         for did, txt, x, y in disagreements:
@@ -178,7 +204,8 @@ def _collect(cfg) -> int:
     if n_skip:
         print(f"               skipped (no label yet): {n_skip}")
     print(f"               -> wrote labels into {gold_path}")
-    print("               (rerun 3_check_gold.py now to run the teacher–human agreement gate)")
+    print("               NEXT: rerun export_finetune.py, then 6_evaluate.py")
+    print("               (6_evaluate.py scores existing teacher proposals offline)")
     return 0
 
 
@@ -186,13 +213,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Human gold-annotation workflow")
     parser.add_argument("--export", action="store_true", help="gold.jsonl -> annotation CSV")
     parser.add_argument("--collect", action="store_true", help="CSV -> write labels back + kappa")
+    parser.add_argument(
+        "--allow-single-annotator",
+        action="store_true",
+        help="allow only annotator_a or annotator_b; no inter-annotator kappa is reported",
+    )
     args = parser.parse_args()
 
     cfg = load_config()
     if args.export:
         return _export(cfg)
     if args.collect:
-        return _collect(cfg)
+        return _collect(cfg, allow_single_annotator=args.allow_single_annotator)
     parser.print_help()
     return 1
 

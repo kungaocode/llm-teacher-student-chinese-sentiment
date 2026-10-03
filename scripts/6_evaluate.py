@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Step 6: evaluate model predictions against the gold set.
+"""Step 6: evaluate model predictions against the human gold set.
 
-Reads the gold truth and any prediction files under ``results/predictions/``
-(each JSONL with ``{id, label}``), computes accuracy / macro-F1 / Cohen's kappa
-for each, and writes ``results/metrics.json``.
+Reads the gold truth plus prediction files under ``results/predictions/`` and
+top-level ``results/*_predictions.jsonl``. Existing teacher proposals are also
+scored as a prediction source, without calling the teacher API again. Writes
+``results/metrics.json``.
 """
 from __future__ import annotations
 
@@ -42,9 +43,7 @@ def main() -> int:
     gold_map = dict(zip(gold_ids, gold_labels))
 
     pred_files = sorted(preds_dir.glob("*.jsonl")) if preds_dir.exists() else []
-    if not pred_files:
-        # Fall back to any *_predictions.jsonl written directly under results/.
-        pred_files = sorted(results_dir.glob("*_predictions.jsonl"))
+    pred_files.extend(sorted(results_dir.glob("*_predictions.jsonl")))
 
     if not pred_files:
         print("[6_evaluate] no prediction files found under results/; "
@@ -52,20 +51,35 @@ def main() -> int:
         return 1
 
     metrics = {}
+    proposal_path = results_dir / "gold_teacher_proposals.jsonl"
+    if proposal_path.exists():
+        proposal_rows = [
+            {"id": row["id"], "label": row.get("teacher_label")}
+            for row in load_jsonl_dicts(proposal_path)
+            if row.get("teacher_label")
+        ]
+        teacher_model = str(cfg.get("teacher.model", "teacher")).replace("/", "_")
+        pred_files.append((teacher_model, proposal_rows))
+
     for pf in pred_files:
-        rows = load_jsonl_dicts(pf)
+        if isinstance(pf, tuple):
+            model, rows = pf
+            file_name = proposal_path.name
+        else:
+            rows = load_jsonl_dicts(pf)
+            model = pf.stem.replace("_predictions", "").replace("predictions_", "")
+            file_name = pf.name
         pred_map = {r["id"]: coerce_label(r["label"]) for r in rows if r.get("label") is not None}
         # Evaluate on gold ids that this model predicted (ordered by gold).
         common = [i for i in gold_ids if i in pred_map]
         if not common:
-            print(f"[6_evaluate] {pf.name}: no overlapping ids with gold; skipped.")
+            print(f"[6_evaluate] {file_name}: no overlapping ids with gold; skipped.")
             continue
         y_true = [gold_map[i] for i in common]
         y_pred = [pred_map[i] for i in common]
         s = classification_summary(y_true, y_pred)
-        model = pf.stem.replace("_predictions", "").replace("predictions_", "")
         metrics[model] = {
-            "file": pf.name,
+            "file": file_name,
             "n": len(common),
             "accuracy": round(s["accuracy"], 4),
             "macro_f1": round(s["macro_f1"], 4),

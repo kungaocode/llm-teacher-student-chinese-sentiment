@@ -107,7 +107,10 @@ def main() -> int:
         gid = str(g["id"])
         label = coerce_label(g["label"]) if g.get("label") else prop.get(gid)
         if label is None:
-            print(f"[export_finetune] WARNING: no label for gold id={gid}; run 3_check_gold.py first.")
+            print(
+                f"[export_finetune] WARNING: no label for gold id={gid}; "
+                "collect human labels with annotate_gold.py first."
+            )
             continue
         test_rows.append({"id": g["id"], "text": g["text"], "label": label})
         test_meta.append({
